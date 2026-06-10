@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>When can we meet?</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #ffffff;
+  --bg2:       #f6f5f2;
+  --bg3:       #edecea;
+  --border:    rgba(0,0,0,0.09);
+  --border2:   rgba(0,0,0,0.17);
+  --text:      #18180f;
+  --muted:     #7a7870;
+  --accent:    #185FA5;
+  --accent-bg: #e6f1fb;
+  --yes:       #1D9E75;
+  --yes-bg:    #e1f5ee;
+  --no:        #b93328;
+  --no-bg:     #fce8e6;
+  --maybe:     #a06000;
+  --maybe-bg:  #fff3c0;
+  --own-bg:    #eef5fd;
+  --own-line:  #b5d4f4;
+  --host-bg:   #fffaed;
+  --host-line: #edc940;
+  --r:         10px;
+  --name-w:    84px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg2);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px 12px 52px;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+#header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 14px;
+}
+#event-title {
+  flex: 1; font-size: 19px; font-weight: 600; line-height: 1.25;
+  min-width: 0; word-break: break-word;
+}
+#event-title[contenteditable="true"] {
+  outline: none; border-bottom: 1.5px dashed var(--border2);
+  padding-bottom: 1px; cursor: text;
+}
+#event-title[contenteditable="true"]:focus { border-color: var(--accent); }
+
+.btn-sm {
+  flex-shrink: 0;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 5px 9px;
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  white-space: nowrap; line-height: 1.4;
+  transition: border-color 0.12s, color 0.12s;
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.btn-sm.active {
+  background: var(--host-bg); border-color: var(--host-line);
+  color: #7a5000; font-weight: 600;
+}
+
+/* ── Host panel ── */
+#host-panel {
+  background: var(--host-bg);
+  border: 1px solid var(--host-line);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: none;
+}
+#host-panel.visible { display: block; }
+#host-panel-title {
+  font-size: 11px; font-weight: 700; color: #7a5000;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+#date-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.date-edit-row { display: flex; gap: 6px; align-items: center; }
+.date-edit-row input[type="date"] {
+  flex: 1; padding: 7px 9px;
+  border: 1px solid var(--border2); border-radius: 6px;
+  font-size: 13px; background: var(--bg); color: var(--text); outline: none;
+}
+.date-edit-row input[type="date"]:focus { border-color: var(--accent); }
+.btn-rm {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 18px; padding: 0 2px; line-height: 1;
+  flex-shrink: 0;
+}
+.btn-rm:hover { color: var(--no); }
+#btn-add-date {
+  width: 100%; padding: 6px; background: none;
+  border: 1.5px dashed var(--host-line); border-radius: 6px;
+  font-size: 12px; color: #7a5000; cursor: pointer; text-align: center;
+}
+#btn-add-date:hover { background: rgba(237,201,64,0.12); }
+#btn-add-date:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Grid ── */
+#grid-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+/* Empty state */
+#no-dates-msg {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px; color: var(--muted);
+  line-height: 1.7;
+}
+
+table {
+  width: 100%; border-collapse: collapse; table-layout: fixed;
+}
+colgroup col.col-name { width: var(--name-w); }
+
+/* Column headers */
+thead th {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  padding: 0;
+}
+.th-name {
+  text-align: left; padding: 8px 10px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.th-date {
+  text-align: center; padding: 7px 2px 5px;
+  border-left: 1px solid var(--border);
+}
+.th-day { display: block; font-size: 10px; font-weight: 700; color: var(--text); }
+.th-num { display: block; font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.15; }
+.th-mon { display: block; font-size: 10px; font-weight: 700; color: var(--text); margin-top: 1px; }
+
+/* Summary row */
+.tr-sum td {
+  background: var(--bg2);
+  border-bottom: 1.5px solid var(--border2);
+  padding: 4px 2px;
+  text-align: center;
+}
+.tr-sum .td-blank {
+  border-right: 1px solid var(--border);
+}
+.td-cnt { border-left: 1px solid var(--border); }
+.cnt-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; border-radius: 11px;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg3); color: var(--muted);
+}
+.cnt-badge.best { background: var(--yes-bg); color: var(--yes); }
+
+/* Participant rows */
+.tr-p td { border-bottom: 1px solid var(--border); }
+.tr-p:last-of-type td { border-bottom: none; }
+
+.td-name {
+  padding: 0 8px 0 10px;
+  height: 44px;
+  font-size: 13px; color: var(--text);
+  vertical-align: middle;
+}
+.td-name-inner {
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+}
+.name-text {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  flex: 1;
+}
+.you-dot {
+  flex-shrink: 0;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+}
+
+.tr-own td { background: var(--own-bg); }
+.tr-own .td-name { font-weight: 600; }
+.tr-own .td-cell { border-left-color: var(--own-line); }
+
+.td-cell {
+  text-align: center; vertical-align: middle;
+  height: 44px; padding: 0 2px;
+  border-left: 1px solid var(--border);
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.tr-own .td-cell { cursor: pointer; }
+.tr-own .td-cell:active { opacity: 0.6; }
+
+.cell-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 14px; font-weight: 700; line-height: 1;
+}
+.cell-icon.yes   { background: var(--yes-bg);   color: var(--yes); }
+.cell-icon.no    { background: var(--no-bg);     color: var(--no); font-size: 11px; }
+.cell-icon.maybe { background: var(--maybe-bg);  color: var(--maybe); font-size: 18px; letter-spacing: -2px; }
+
+/* Host: delete button */
+.btn-del {
+  flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 15px; padding: 0 1px; line-height: 1;
+  opacity: 0; transition: opacity 0.15s;
+}
+.host-mode .tr-p:not(.tr-own):hover .btn-del { opacity: 1; }
+.host-mode .btn-del:hover { color: var(--no); opacity: 1; }
+
+/* Inline rename input */
+.rename-input {
+  width: 100%; padding: 2px 5px;
+  border: 1px solid var(--accent); border-radius: 4px;
+  font-size: 13px; font-weight: 600; background: var(--bg);
+  color: var(--text); outline: none; min-width: 0;
+}
+
+/* ── Join widget ── */
+#join-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  display: flex; gap: 8px; align-items: center;
+}
+#join-label {
+  font-size: 12px; color: var(--muted);
+  white-space: nowrap; flex-shrink: 0;
+}
+#join-input {
+  flex: 1; min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border2); border-radius: 7px;
+  font-size: 14px; background: var(--bg); color: var(--text); outline: none;
+}
+#join-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(24,95,165,0.1);
+}
+#join-btn {
+  flex-shrink: 0;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 7px;
+  padding: 7px 13px; font-size: 14px; font-weight: 500;
+  cursor: pointer; white-space: nowrap;
+}
+#join-btn:hover { background: #0c447c; }
+#join-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Legend ── */
+#legend {
+  display: flex; gap: 12px; margin-top: 10px;
+  justify-content: center;
+}
+.leg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.leg-icon {
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="event-title" contenteditable="false" spellcheck="false">When can we meet?</div>
+  <button class="btn-sm" id="btn-host">🔑 Host</button>
+</div>
+
+<div id="host-panel">
+  <div id="host-panel-title">Dates</div>
+  <div id="date-list"></div>
+  <button id="btn-add-date">+ Add date</button>
+</div>
+
+<div id="grid-wrap">
+  <div id="no-dates-msg">No dates set yet — toggle <strong>Host</strong> to add some ↗</div>
+  <table id="grid-table" style="display:none;">
+    <colgroup id="colgroup"><col class="col-name"></colgroup>
+    <thead id="grid-head"></thead>
+    <tbody id="grid-body"></tbody>
+  </table>
+</div>
+
+<div id="join-wrap">
+  <span id="join-label">+ Join</span>
+  <input id="join-input" type="text" placeholder="Your name" autocomplete="off" maxlength="30">
+  <button id="join-btn" disabled>Add →</button>
+</div>
+
+<div id="legend">
+  <div class="leg"><div class="leg-icon" style="background:var(--yes-bg);color:var(--yes);">✓</div> Yes</div>
+  <div class="leg"><div class="leg-icon" style="background:var(--maybe-bg);color:var(--maybe);font-size:11px;">≈</div> If needed</div>
+  <div class="leg"><div class="leg-icon" style="background:var(--no-bg);color:var(--no);">✕</div> No</div>
+</div>
+
+<script>
+const DAY   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CYCLE = ['yes','no','maybe'];
+const ICON  = { yes:'✓', no:'✕', maybe:'≈' };
+const KEY   = 'avail_v4';
+const ID_KEY = 'avail_myid_v4';
+
+function load()    { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } }
+function persist() { localStorage.setItem(KEY, JSON.stringify(S)); }
+
+let S        = load();
+let myId     = localStorage.getItem(ID_KEY) || null;
+let hostMode = false;
+
+if (!S.participants) S.participants = [];
+if (!S.dates)        S.dates = [];
+if (!S.title)        S.title = 'When can we meet?';
+
+/* ── DOM ── */
+const titleEl    = document.getElementById('event-title');
+const btnHost    = document.getElementById('btn-host');
+const hostPanel  = document.getElementById('host-panel');
+const dateList   = document.getElementById('date-list');
+const btnAddDate = document.getElementById('btn-add-date');
+const noDatesMsg = document.getElementById('no-dates-msg');
+const gridTable  = document.getElementById('grid-table');
+const colgroup   = document.getElementById('colgroup');
+const gridHead   = document.getElementById('grid-head');
+const gridBody   = document.getElementById('grid-body');
+const joinInput  = document.getElementById('join-input');
+const joinBtn    = document.getElementById('join-btn');
+
+/* ── Boot ── */
+titleEl.textContent = S.title;
+
+// validate myId still exists in state
+if (myId && !S.participants.find(p => p.id === myId)) myId = null;
+
+render();
+if (!myId) joinInput.focus();
+
+/* ── Join input ── */
+joinInput.addEventListener('input', () => {
+  joinBtn.disabled = joinInput.value.trim().length < 1;
+});
+joinInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !joinBtn.disabled) joinBtn.click();
+});
+
+joinBtn.addEventListener('click', () => {
+  const name = joinInput.value.trim();
+  if (!name) return;
+
+  // always create a new participant and make them "me"
+  myId = 'p' + Date.now() + Math.random().toString(36).slice(2, 6);
+  localStorage.setItem(ID_KEY, myId);
+
+  const p = { id: myId, name, avail: {} };
+  S.dates.forEach(d => { p.avail[d] = 'yes'; });
+  S.participants.push(p);
+
+  persist();
+  joinInput.value = '';
+  joinBtn.disabled = true;
+  render();
+});
+
+/* ── Host toggle ── */
+btnHost.addEventListener('click', () => {
+  hostMode = !hostMode;
+  btnHost.classList.toggle('active', hostMode);
+  hostPanel.classList.toggle('visible', hostMode);
+  titleEl.contentEditable = hostMode ? 'true' : 'false';
+  if (hostMode) { renderDateList(); titleEl.focus(); }
+  render();
+});
+
+/* ── Title ── */
+titleEl.addEventListener('input', () => {
+  S.title = titleEl.textContent.trim() || 'When can we meet?';
+  persist();
+});
+titleEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+});
+
+/* ── Date list (host) ── */
+function renderDateList() {
+  dateList.innerHTML = '';
+  S.dates.forEach((d, i) => {
+    const row = makeEl('div', 'date-edit-row');
+    const inp = makeEl('input'); inp.type = 'date'; inp.value = d;
+    inp.addEventListener('change', () => {
+      const v = inp.value; if (!v) return;
+      S.participants.forEach(p => { if (d in p.avail) { p.avail[v] = p.avail[d]; delete p.avail[d]; } });
+      S.dates[i] = v; S.dates.sort();
+      persist(); renderDateList(); render();
+    });
+    const rm = makeEl('button', 'btn-rm'); rm.type = 'button'; rm.textContent = '×';
+    rm.addEventListener('click', () => {
+      S.dates.splice(i, 1);
+      S.participants.forEach(p => delete p.avail[d]);
+      persist(); renderDateList(); render();
+    });
+    row.appendChild(inp); row.appendChild(rm);
+    dateList.appendChild(row);
+  });
+  btnAddDate.disabled = S.dates.length >= 5;
+}
+
+btnAddDate.addEventListener('click', () => {
+  if (S.dates.length >= 5) return;
+  const row = makeEl('div', 'date-edit-row');
+  const inp = makeEl('input'); inp.type = 'date';
+  inp.addEventListener('change', () => {
+    const v = inp.value;
+    if (!v || S.dates.includes(v)) return;
+    S.dates.push(v); S.dates.sort();
+    S.participants.forEach(p => { if (!(v in p.avail)) p.avail[v] = 'yes'; });
+    persist(); renderDateList(); render();
+  });
+  const rm = makeEl('button', 'btn-rm'); rm.type = 'button'; rm.textContent = '×';
+  rm.addEventListener('click', () => { row.remove(); btnAddDate.disabled = false; });
+  row.appendChild(inp); row.appendChild(rm);
+  dateList.appendChild(row);
+  btnAddDate.disabled = dateList.children.length >= 5;
+  inp.focus();
+});
+
+/* ── Render ── */
+function render() {
+  const dates  = S.dates;
+  const people = S.participants;
+
+  if (!dates.length) {
+    noDatesMsg.style.display = '';
+    gridTable.style.display  = 'none';
+    return;
+  }
+  noDatesMsg.style.display = 'none';
+  gridTable.style.display  = '';
+
+  // colgroup
+  colgroup.innerHTML = '<col class="col-name">';
+  dates.forEach(() => colgroup.appendChild(makeEl('col')));
+
+  // thead
+  let h = '<tr><th class="th-name"></th>';
+  dates.forEach(d => {
+    const dt = new Date(d + 'T12:00:00');
+    h += `<th class="th-date">
+      <span class="th-day">${DAY[dt.getDay()]}</span>
+      <span class="th-num">${dt.getDate()}</span>
+      <span class="th-mon">${MON[dt.getMonth()]}</span>
+    </th>`;
+  });
+  h += '</tr>';
+  gridHead.innerHTML = h;
+
+  // summary row
+  const yc   = dates.map(d => people.filter(p => p.avail[d] === 'yes').length);
+  const best = Math.max(...yc, 0);
+  let sum = '<tr class="tr-sum"><td class="td-blank"></td>';
+  dates.forEach((d, i) => {
+    const b = yc[i] === best && yc[i] > 0;
+    sum += `<td class="td-cnt"><span class="cnt-badge${b?' best':''}">${yc[i]}</span></td>`;
+  });
+  sum += '</tr>';
+
+  // participant rows
+  let rows = '';
+  people.forEach(p => {
+    const isMe = p.id === myId;
+    rows += `<tr class="tr-p${isMe?' tr-own':''}" data-pid="${x(p.id)}">`;
+    rows += `<td class="td-name"><div class="td-name-inner">
+      ${isMe ? '<span class="you-dot" title="you"></span>' : ''}
+      <span class="name-text" data-pid="${x(p.id)}">${x(p.name)}</span>
+      ${hostMode && !isMe ? `<button class="btn-del" data-action="del" data-pid="${x(p.id)}">×</button>` : ''}
+    </div></td>`;
+    dates.forEach(d => {
+      const s = p.avail[d] ?? 'no';
+      rows += `<td class="td-cell" data-pid="${x(p.id)}" data-date="${x(d)}">
+        <span class="cell-icon ${s}">${ICON[s]}</span></td>`;
+    });
+    rows += '</tr>';
+  });
+
+  gridBody.innerHTML = sum + rows;
+  document.getElementById('grid-wrap').classList.toggle('host-mode', hostMode);
+
+  // single delegated listener
+  gridBody.onclick = handleClick;
+  gridBody.ondblclick = handleDblClick;
+}
+
+/* ── Clicks ── */
+function handleClick(e) {
+  // delete participant
+  const del = e.target.closest('[data-action="del"]');
+  if (del) {
+    S.participants = S.participants.filter(p => p.id !== del.dataset.pid);
+    persist(); render(); return;
+  }
+  // cell toggle (own row only)
+  const cell = e.target.closest('.td-cell');
+  if (!cell || cell.dataset.pid !== myId) return;
+  const me = S.participants.find(p => p.id === myId);
+  if (!me) return;
+  const d   = cell.dataset.date;
+  const cur = me.avail[d] ?? 'no';
+  me.avail[d] = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  persist(); render();
+}
+
+function handleDblClick(e) {
+  // double-click own name to rename inline
+  const nameSpan = e.target.closest('.name-text');
+  if (!nameSpan || nameSpan.dataset.pid !== myId) return;
+
+  const current = S.participants.find(p => p.id === myId);
+  if (!current) return;
+
+  const inp = makeEl('input', 'rename-input');
+  inp.value = current.name;
+  nameSpan.replaceWith(inp);
+  inp.focus(); inp.select();
+
+  function commit() {
+    const v = inp.value.trim();
+    if (v) { current.name = v; persist(); }
+    render();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = current.name; inp.blur(); }
+  });
+}
+
+/* ── Utils ── */
+function makeEl(tag, cls) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  return el;
+}
+function x(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

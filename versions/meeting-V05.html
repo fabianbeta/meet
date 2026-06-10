@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>When can we meet?</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #ffffff;
+  --bg2:       #f6f5f2;
+  --bg3:       #edecea;
+  --border:    rgba(0,0,0,0.09);
+  --border2:   rgba(0,0,0,0.17);
+  --text:      #18180f;
+  --muted:     #7a7870;
+  --accent:    #185FA5;
+  --accent-bg: #deeefa;
+  --yes:       #1D9E75;
+  --yes-bg:    #e1f5ee;
+  --no:        #b93328;
+  --no-bg:     #fce8e6;
+  --maybe:     #9a5c00;
+  --maybe-bg:  #fff3c0;
+  --own-bg:    #eef5fd;
+  --own-line:  #b5d4f4;
+  --host-bg:   #fffaed;
+  --host-line: #edc940;
+  --r:         10px;
+  --name-w:    84px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg2);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px 12px 52px;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Legend (top) ── */
+#legend {
+  display: flex; gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.leg {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 11px;
+  font-size: 14px; font-weight: 500; color: var(--text);
+}
+.leg-icon {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+
+/* ── Header ── */
+#header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+#event-title {
+  flex: 1; font-size: 19px; font-weight: 600; line-height: 1.25;
+  min-width: 0; word-break: break-word;
+}
+#event-title[contenteditable="true"] {
+  outline: none; border-bottom: 1.5px dashed var(--border2);
+  padding-bottom: 1px; cursor: text;
+}
+#event-title[contenteditable="true"]:focus { border-color: var(--accent); }
+
+.btn-sm {
+  flex-shrink: 0;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 5px 10px;
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  white-space: nowrap; line-height: 1.4;
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.btn-sm.active { background: var(--host-bg); border-color: var(--host-line); color: #7a5000; font-weight: 600; }
+
+/* ── Host panel ── */
+#host-panel {
+  background: var(--host-bg); border: 1px solid var(--host-line);
+  border-radius: var(--r); padding: 14px;
+  margin-bottom: 12px; display: none;
+}
+#host-panel.visible { display: block; }
+.host-section-title {
+  font-size: 11px; font-weight: 700; color: #7a5000;
+  letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 10px;
+}
+
+/* ── Calendar ── */
+#cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+#cal-month-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.cal-nav-btn {
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 6px; width: 28px; height: 28px;
+  font-size: 15px; cursor: pointer; color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+.cal-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+#cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+  margin-bottom: 10px;
+}
+.cal-dow {
+  text-align: center; font-size: 10px; font-weight: 700;
+  color: var(--muted); padding: 3px 0; letter-spacing: 0.04em;
+}
+.cal-day {
+  aspect-ratio: 1; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; cursor: pointer; border: none;
+  background: transparent; color: var(--text);
+  position: relative;
+}
+.cal-day:hover:not(:disabled):not(.empty) { background: var(--bg3); }
+.cal-day.today { font-weight: 700; }
+.cal-day.today::after {
+  content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+.cal-day.sel {
+  background: var(--accent); color: #fff; font-weight: 600;
+}
+.cal-day.sel.today::after { background: rgba(255,255,255,0.7); }
+.cal-day.empty { pointer-events: none; }
+.cal-day:disabled { opacity: 0.28; cursor: not-allowed; }
+
+/* selected chips */
+#cal-chips {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding-top: 6px; border-top: 1px solid var(--host-line);
+}
+.cal-chip {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--accent-bg); border: 1px solid rgba(24,95,165,0.2);
+  border-radius: 20px; padding: 3px 8px 3px 10px;
+  font-size: 12px; font-weight: 500; color: var(--accent);
+}
+.chip-rm {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; color: var(--accent); opacity: 0.6;
+  padding: 0; line-height: 1; margin-left: 1px;
+}
+.chip-rm:hover { opacity: 1; }
+#cal-hint {
+  font-size: 12px; color: var(--muted); padding-top: 6px;
+  border-top: 1px solid var(--host-line);
+}
+
+/* ── Grid ── */
+#grid-wrap {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden; margin-bottom: 8px;
+}
+#empty-msg {
+  padding: 22px 16px; text-align: center;
+  font-size: 13px; color: var(--muted); line-height: 1.7;
+  display: none;
+}
+
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+colgroup col.col-name { width: var(--name-w); }
+table.no-dates colgroup col.col-name { width: 100%; }
+
+thead th { background: var(--bg2); border-bottom: 1px solid var(--border2); padding: 0; }
+.th-name {
+  text-align: left; padding: 8px 10px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.th-date { text-align: center; padding: 7px 2px 5px; border-left: 1px solid var(--border); }
+.th-day { display: block; font-size: 10px; font-weight: 700; color: var(--text); }
+.th-num { display: block; font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.15; }
+.th-mon { display: block; font-size: 10px; font-weight: 700; color: var(--text); margin-top: 1px; }
+
+.tr-sum td { background: var(--bg2); border-bottom: 1.5px solid var(--border2); padding: 4px 2px; text-align: center; }
+.tr-sum .td-blank { border-right: 1px solid var(--border); }
+.td-cnt { border-left: 1px solid var(--border); }
+.cnt-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; border-radius: 11px;
+  font-size: 12px; font-weight: 600; background: var(--bg3); color: var(--muted);
+}
+.cnt-badge.best { background: var(--yes-bg); color: var(--yes); }
+
+.tr-p td { border-bottom: 1px solid var(--border); }
+.tr-p:last-of-type td { border-bottom: none; }
+.td-name { padding: 0 8px 0 10px; height: 44px; font-size: 13px; color: var(--text); vertical-align: middle; }
+.td-name-inner { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.you-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+.tr-own td { background: var(--own-bg); }
+.tr-own .td-name { font-weight: 600; }
+.tr-own .td-cell { border-left-color: var(--own-line); }
+
+.td-cell {
+  text-align: center; vertical-align: middle; height: 44px; padding: 0 2px;
+  border-left: 1px solid var(--border);
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.tr-own .td-cell { cursor: pointer; }
+.tr-own .td-cell:active { opacity: 0.6; }
+
+.cell-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 14px; font-weight: 700; line-height: 1;
+}
+.cell-icon.yes   { background: var(--yes-bg);   color: var(--yes); }
+.cell-icon.no    { background: var(--no-bg);     color: var(--no); font-size: 11px; }
+.cell-icon.maybe { background: var(--maybe-bg);  color: var(--maybe); font-size: 18px; letter-spacing: -2px; }
+
+.btn-del {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 15px; padding: 0 1px; line-height: 1;
+  opacity: 0; transition: opacity 0.12s;
+}
+.host-mode .tr-p:not(.tr-own):hover .btn-del { opacity: 1; }
+.host-mode .btn-del:hover { color: var(--no); opacity: 1; }
+
+.rename-input {
+  width: 100%; padding: 2px 5px; border: 1px solid var(--accent);
+  border-radius: 4px; font-size: 13px; font-weight: 600;
+  background: var(--bg); color: var(--text); outline: none; min-width: 0;
+}
+
+/* ── Join widget ── */
+#join-wrap {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 10px 12px;
+  display: flex; gap: 8px; align-items: center;
+}
+#join-input {
+  flex: 1; min-width: 0; padding: 7px 10px;
+  border: 1px solid var(--border2); border-radius: 7px;
+  font-size: 14px; background: var(--bg); color: var(--text); outline: none;
+}
+#join-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+#join-btn {
+  flex-shrink: 0; background: var(--accent); color: #fff;
+  border: none; border-radius: 7px; padding: 7px 13px;
+  font-size: 14px; font-weight: 500; cursor: pointer;
+}
+#join-btn:hover { background: #0c447c; }
+#join-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- Legend at top -->
+<div id="legend">
+  <div class="leg">
+    <div class="leg-icon" style="background:var(--yes-bg);color:var(--yes);">✓</div> Yes
+  </div>
+  <div class="leg">
+    <div class="leg-icon" style="background:var(--maybe-bg);color:var(--maybe);font-size:14px;">≈</div> If needed
+  </div>
+  <div class="leg">
+    <div class="leg-icon" style="background:var(--no-bg);color:var(--no);">✕</div> No
+  </div>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <div id="event-title" contenteditable="false" spellcheck="false">When can we meet?</div>
+  <button class="btn-sm" id="btn-host">🔑 Host</button>
+</div>
+
+<!-- Host panel with calendar -->
+<div id="host-panel">
+  <div class="host-section-title">Pick dates (up to 5)</div>
+  <div id="cal-nav">
+    <button class="cal-nav-btn" id="cal-prev">‹</button>
+    <span id="cal-month-label"></span>
+    <button class="cal-nav-btn" id="cal-next">›</button>
+  </div>
+  <div id="cal-grid"></div>
+  <div id="cal-chips-wrap"></div>
+</div>
+
+<!-- Grid -->
+<div id="grid-wrap">
+  <div id="empty-msg">Add your name below to get started.</div>
+  <table id="grid-table">
+    <colgroup id="colgroup"><col class="col-name"></colgroup>
+    <thead id="grid-head"></thead>
+    <tbody id="grid-body"></tbody>
+  </table>
+</div>
+
+<!-- Join widget -->
+<div id="join-wrap">
+  <input id="join-input" type="text" placeholder="Your name — tap to join" autocomplete="off" maxlength="30">
+  <button id="join-btn" disabled>Add →</button>
+</div>
+
+<script>
+const DAY    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CYCLE  = ['yes','no','maybe'];
+const ICON   = { yes:'✓', no:'✕', maybe:'≈' };
+const KEY    = 'avail_v5';
+const ID_KEY = 'avail_myid_v5';
+
+function load()    { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } }
+function persist() { localStorage.setItem(KEY, JSON.stringify(S)); }
+
+let S        = load();
+let myId     = localStorage.getItem(ID_KEY) || null;
+let hostMode = false;
+
+if (!S.participants) S.participants = [];
+if (!S.dates)        S.dates = [];
+if (!S.title)        S.title = 'When can we meet?';
+
+// validate myId still in state
+if (myId && !S.participants.find(p => p.id === myId)) myId = null;
+
+/* ── DOM ── */
+const titleEl     = document.getElementById('event-title');
+const btnHost     = document.getElementById('btn-host');
+const hostPanel   = document.getElementById('host-panel');
+const calGrid     = document.getElementById('cal-grid');
+const calLabel    = document.getElementById('cal-month-label');
+const calChips    = document.getElementById('cal-chips-wrap');
+const emptyMsg    = document.getElementById('empty-msg');
+const gridTable   = document.getElementById('grid-table');
+const colgroup    = document.getElementById('colgroup');
+const gridHead    = document.getElementById('grid-head');
+const gridBody    = document.getElementById('grid-body');
+const joinInput   = document.getElementById('join-input');
+const joinBtn     = document.getElementById('join-btn');
+
+/* ── Calendar state ── */
+const now = new Date();
+let calYear  = now.getFullYear();
+let calMonth = now.getMonth();
+
+/* ── Boot ── */
+titleEl.textContent = S.title;
+render();
+if (!myId) joinInput.focus();
+
+/* ── Join ── */
+joinInput.addEventListener('input', () => { joinBtn.disabled = !joinInput.value.trim(); });
+joinInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !joinBtn.disabled) joinBtn.click(); });
+
+joinBtn.addEventListener('click', () => {
+  const name = joinInput.value.trim();
+  if (!name) return;
+  myId = 'p' + Date.now() + Math.random().toString(36).slice(2, 6);
+  localStorage.setItem(ID_KEY, myId);
+  const p = { id: myId, name, avail: {} };
+  S.dates.forEach(d => { p.avail[d] = 'yes'; });
+  S.participants.push(p);
+  persist();
+  joinInput.value = '';
+  joinBtn.disabled = true;
+  render();
+});
+
+/* ── Host toggle ── */
+btnHost.addEventListener('click', () => {
+  hostMode = !hostMode;
+  btnHost.classList.toggle('active', hostMode);
+  hostPanel.classList.toggle('visible', hostMode);
+  titleEl.contentEditable = hostMode ? 'true' : 'false';
+  if (hostMode) renderCalendar();
+  render();
+});
+
+/* ── Title ── */
+titleEl.addEventListener('input', () => { S.title = titleEl.textContent.trim() || 'When can we meet?'; persist(); });
+titleEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } });
+
+/* ── Calendar ── */
+document.getElementById('cal-prev').addEventListener('click', () => {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar();
+});
+document.getElementById('cal-next').addEventListener('click', () => {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar();
+});
+
+function renderCalendar() {
+  calLabel.textContent = MONTHS[calMonth] + ' ' + calYear;
+
+  const todayStr = toDateStr(now);
+  const firstDow = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  // Day-of-week headers
+  let html = DAY.map(d => `<span class="cal-dow">${d.slice(0,2)}</span>`).join('');
+
+  // Empty cells before month start
+  for (let i = 0; i < firstDow; i++) html += '<button class="cal-day empty" disabled></button>';
+
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds  = toDateStr(new Date(calYear, calMonth, d));
+    const sel = S.dates.includes(ds);
+    const maxed = S.dates.length >= 5 && !sel;
+    const isToday = ds === todayStr;
+    let cls = 'cal-day';
+    if (sel)    cls += ' sel';
+    if (isToday) cls += ' today';
+    html += `<button class="${cls}" data-date="${ds}"${maxed ? ' disabled title="Max 5 dates"' : ''}>${d}</button>`;
+  }
+
+  calGrid.innerHTML = html;
+
+  // Bind day clicks
+  calGrid.querySelectorAll('.cal-day[data-date]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ds = btn.dataset.date;
+      if (S.dates.includes(ds)) {
+        S.dates = S.dates.filter(x => x !== ds);
+        S.participants.forEach(p => delete p.avail[ds]);
+      } else if (S.dates.length < 5) {
+        S.dates.push(ds); S.dates.sort();
+        S.participants.forEach(p => { if (!(ds in p.avail)) p.avail[ds] = 'yes'; });
+      }
+      persist(); renderCalendar(); render();
+    });
+  });
+
+  // Chips for selected dates
+  if (S.dates.length > 0) {
+    let chips = '';
+    S.dates.forEach(ds => {
+      const dt = new Date(ds + 'T12:00:00');
+      chips += `<span class="cal-chip">
+        ${DAY[dt.getDay()]} ${dt.getDate()} ${MON[dt.getMonth()]}
+        <button class="chip-rm" data-rm="${ds}" title="Remove">×</button>
+      </span>`;
+    });
+    calChips.innerHTML = `<div id="cal-chips">${chips}</div>`;
+    calChips.querySelectorAll('.chip-rm').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ds = btn.dataset.rm;
+        S.dates = S.dates.filter(x => x !== ds);
+        S.participants.forEach(p => delete p.avail[ds]);
+        persist(); renderCalendar(); render();
+      });
+    });
+  } else {
+    calChips.innerHTML = `<div id="cal-hint">Tap any day to add it. Up to 5.</div>`;
+  }
+}
+
+/* ── Render grid ── */
+function render() {
+  const dates  = S.dates;
+  const people = S.participants;
+  const hasAny = people.length > 0 || dates.length > 0;
+
+  emptyMsg.style.display  = hasAny ? 'none' : 'block';
+  gridTable.style.display = hasAny ? '' : 'none';
+  if (!hasAny) return;
+
+  gridTable.classList.toggle('no-dates', dates.length === 0);
+
+  // colgroup
+  colgroup.innerHTML = '<col class="col-name">';
+  dates.forEach(() => colgroup.appendChild(el('col')));
+
+  // thead
+  let h = '<tr><th class="th-name">People <span style="opacity:.45;font-weight:400;">' + people.length + '</span></th>';
+  dates.forEach(d => {
+    const dt = new Date(d + 'T12:00:00');
+    h += `<th class="th-date">
+      <span class="th-day">${DAY[dt.getDay()]}</span>
+      <span class="th-num">${dt.getDate()}</span>
+      <span class="th-mon">${MON[dt.getMonth()]}</span>
+    </th>`;
+  });
+  h += '</tr>';
+  gridHead.innerHTML = h;
+
+  // summary row (only with dates)
+  let sum = '';
+  if (dates.length > 0) {
+    const yc   = dates.map(d => people.filter(p => p.avail[d] === 'yes').length);
+    const best = Math.max(...yc, 0);
+    sum = '<tr class="tr-sum"><td class="td-blank"></td>';
+    dates.forEach((d, i) => {
+      const b = yc[i] === best && yc[i] > 0;
+      sum += `<td class="td-cnt"><span class="cnt-badge${b ? ' best' : ''}">${yc[i]}</span></td>`;
+    });
+    sum += '</tr>';
+  }
+
+  // participant rows
+  let rows = '';
+  people.forEach(p => {
+    const isMe = p.id === myId;
+    rows += `<tr class="tr-p${isMe ? ' tr-own' : ''}" data-pid="${x(p.id)}">`;
+    rows += `<td class="td-name"><div class="td-name-inner">
+      ${isMe ? '<span class="you-dot"></span>' : ''}
+      <span class="name-text" data-pid="${x(p.id)}">${x(p.name)}</span>
+      ${hostMode && !isMe ? `<button class="btn-del" data-action="del" data-pid="${x(p.id)}">×</button>` : ''}
+    </div></td>`;
+    dates.forEach(d => {
+      const s = p.avail[d] ?? 'no';
+      rows += `<td class="td-cell" data-pid="${x(p.id)}" data-date="${x(d)}">
+        <span class="cell-icon ${s}">${ICON[s]}</span></td>`;
+    });
+    rows += '</tr>';
+  });
+
+  gridBody.innerHTML = sum + rows;
+  document.getElementById('grid-wrap').classList.toggle('host-mode', hostMode);
+
+  gridBody.onclick    = handleClick;
+  gridBody.ondblclick = handleDblClick;
+}
+
+/* ── Grid events ── */
+function handleClick(e) {
+  const del = e.target.closest('[data-action="del"]');
+  if (del) {
+    S.participants = S.participants.filter(p => p.id !== del.dataset.pid);
+    persist(); render(); return;
+  }
+  const cell = e.target.closest('.td-cell');
+  if (!cell || cell.dataset.pid !== myId) return;
+  const me = S.participants.find(p => p.id === myId);
+  if (!me) return;
+  const d = cell.dataset.date;
+  const cur = me.avail[d] ?? 'no';
+  me.avail[d] = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  persist(); render();
+}
+
+function handleDblClick(e) {
+  const nameSpan = e.target.closest('.name-text');
+  if (!nameSpan || nameSpan.dataset.pid !== myId) return;
+  const cur = S.participants.find(p => p.id === myId);
+  if (!cur) return;
+  const inp = el('input', 'rename-input');
+  inp.value = cur.name;
+  nameSpan.replaceWith(inp);
+  inp.focus(); inp.select();
+  const commit = () => { if (inp.value.trim()) { cur.name = inp.value.trim(); persist(); } render(); };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = cur.name; inp.blur(); }
+  });
+}
+
+/* ── Utils ── */
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function x(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+</script>
+</body>
+</html>

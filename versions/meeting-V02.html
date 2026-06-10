@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>When can we meet?</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #ffffff;
+  --bg2:       #f6f5f2;
+  --bg3:       #edecea;
+  --border:    rgba(0,0,0,0.09);
+  --border2:   rgba(0,0,0,0.16);
+  --text:      #18180f;
+  --muted:     #7a7870;
+  --accent:    #185FA5;
+  --accent-bg: #e6f1fb;
+  --yes:       #1D9E75;
+  --yes-bg:    #e1f5ee;
+  --no:        #b93328;
+  --no-bg:     #fce8e6;
+  --maybe:     #a06000;
+  --maybe-bg:  #fff0c0;
+  --own-bg:    #eef5fd;
+  --own-line:  #b5d4f4;
+  --host-bg:   #fff8e6;
+  --host-line: #f0c040;
+  --r:         10px;
+  --name-w:    82px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg2);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px 12px 48px;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Overlay ── */
+#overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.32);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; padding: 20px;
+}
+#overlay.hidden { display: none; }
+
+.modal {
+  background: var(--bg);
+  border-radius: var(--r);
+  padding: 24px 20px 20px;
+  width: 100%; max-width: 320px;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.16);
+}
+.modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+.modal .sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.field input[type="text"] {
+  width: 100%; padding: 9px 11px;
+  border: 1px solid var(--border2); border-radius: 7px;
+  font-size: 15px; background: var(--bg); color: var(--text); outline: none;
+}
+.field input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(24,95,165,0.12);
+}
+
+.btn-primary {
+  width: 100%; padding: 11px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 2px;
+}
+.btn-primary:hover { background: #0c447c; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── App header ── */
+#header {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 14px;
+}
+#event-title {
+  flex: 1; font-size: 19px; font-weight: 600; line-height: 1.25;
+  min-width: 0; word-break: break-word;
+}
+#event-title[contenteditable="true"] {
+  outline: none; border-bottom: 1.5px dashed var(--border2);
+  padding-bottom: 2px; cursor: text;
+}
+#event-title[contenteditable="true"]:focus { border-color: var(--accent); }
+#event-title[contenteditable="false"] { cursor: default; }
+
+.btn-sm {
+  flex-shrink: 0;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 6px 9px;
+  font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap;
+  line-height: 1.3;
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.btn-sm.active {
+  background: var(--host-bg); border-color: var(--host-line);
+  color: #7a5000; font-weight: 500;
+}
+
+/* ── Host panel ── */
+#host-panel {
+  background: var(--host-bg);
+  border: 1px solid var(--host-line);
+  border-radius: var(--r);
+  padding: 14px 14px 12px;
+  margin-bottom: 14px;
+  display: none;
+}
+#host-panel.visible { display: block; }
+#host-panel h3 {
+  font-size: 12px; font-weight: 600; color: #7a5000;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+#date-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.date-edit-row {
+  display: flex; gap: 6px; align-items: center;
+}
+.date-edit-row input[type="date"] {
+  flex: 1; padding: 7px 9px;
+  border: 1px solid var(--border2); border-radius: 6px;
+  font-size: 13px; background: var(--bg); color: var(--text); outline: none;
+}
+.date-edit-row input[type="date"]:focus { border-color: var(--accent); }
+.btn-rm-date {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 17px; padding: 0 3px; line-height: 1;
+  flex-shrink: 0;
+}
+.btn-rm-date:hover { color: var(--no); }
+#btn-add-date {
+  width: 100%; padding: 7px; background: none;
+  border: 1.5px dashed var(--host-line); border-radius: 6px;
+  font-size: 12px; color: #7a5000; cursor: pointer; text-align: center;
+}
+#btn-add-date:hover { background: rgba(240,192,64,0.15); }
+#btn-add-date:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Grid wrap ── */
+#grid-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+#no-dates-msg {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+#no-dates-msg strong { color: var(--text); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+colgroup col.col-name { width: var(--name-w); }
+
+/* Header */
+thead tr th {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  font-weight: 500;
+  padding: 0;
+}
+.th-name {
+  text-align: left;
+  padding: 9px 10px;
+  font-size: 11px; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.th-date {
+  text-align: center;
+  padding: 7px 2px 5px;
+  border-left: 1px solid var(--border);
+}
+.th-day  { display: block; font-size: 10px; color: var(--muted); font-weight: 400; }
+.th-num  { display: block; font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.th-mon  { display: block; font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+
+/* Summary row */
+.tr-sum td {
+  background: var(--bg2);
+  border-bottom: 1.5px solid var(--border2);
+  padding: 5px 2px;
+  text-align: center;
+}
+.tr-sum .td-label {
+  text-align: left;
+  padding: 5px 10px;
+  font-size: 11px; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.td-cnt { border-left: 1px solid var(--border); }
+.cnt-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; border-radius: 11px;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg3); color: var(--muted);
+}
+.cnt-badge.best { background: var(--yes-bg); color: var(--yes); }
+
+/* Participant rows */
+.tr-p td { border-bottom: 1px solid var(--border); }
+.tr-p:last-of-type td { border-bottom: none; }
+
+.td-name {
+  padding: 9px 8px 9px 10px;
+  font-size: 13px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: middle;
+}
+.td-name-inner { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.you-badge {
+  flex-shrink: 0;
+  font-size: 10px; font-weight: 500;
+  background: var(--accent-bg); color: var(--accent);
+  border-radius: 4px; padding: 1px 4px;
+}
+
+.tr-own td { background: var(--own-bg); }
+.tr-own .td-name { font-weight: 600; }
+.tr-own .td-cell { border-left-color: var(--own-line); }
+
+.td-cell {
+  text-align: center; vertical-align: middle;
+  padding: 6px 2px;
+  border-left: 1px solid var(--border);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tr-own .td-cell { cursor: pointer; }
+.tr-own .td-cell:active { opacity: 0.65; }
+
+.cell-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px; line-height: 1; font-weight: 600;
+}
+.cell-icon.yes   { background: var(--yes-bg);   color: var(--yes); }
+.cell-icon.no    { background: var(--no-bg);     color: var(--no); font-size: 12px; }
+.cell-icon.maybe { background: var(--maybe-bg);  color: var(--maybe); font-size: 17px; letter-spacing: -1px; }
+
+/* Host: delete participant button */
+.btn-del-p {
+  flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 14px; padding: 0 2px;
+  line-height: 1; opacity: 0;
+  transition: opacity 0.15s;
+}
+.host-mode .tr-p:hover .btn-del-p { opacity: 1; }
+.host-mode .btn-del-p:hover { color: var(--no); opacity: 1; }
+
+/* Add-row */
+#add-row td {
+  padding: 9px 10px;
+  border-top: 1px dashed var(--border2);
+}
+#btn-add-person {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--muted);
+  display: flex; align-items: center; gap: 5px; padding: 0;
+}
+#btn-add-person::before { content: '+'; font-size: 17px; font-weight: 300; }
+#btn-add-person:hover { color: var(--accent); }
+
+/* ── Legend ── */
+#legend {
+  display: flex; gap: 14px; margin-top: 12px;
+  justify-content: center; flex-wrap: wrap;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.leg-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600;
+}
+
+/* ── Rename input (inline) ── */
+.inline-rename {
+  width: 100%; padding: 2px 4px;
+  border: 1px solid var(--accent); border-radius: 4px;
+  font-size: 13px; font-weight: 600; background: var(--bg);
+  color: var(--text); outline: none;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Name modal ── -->
+<div id="overlay">
+  <div class="modal">
+    <h2>👋 What's your name?</h2>
+    <p class="sub">You'll be added to the availability grid.</p>
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="input-name" placeholder="e.g. Fabian"
+             autocomplete="off" maxlength="30">
+    </div>
+    <button class="btn-primary" id="btn-join" disabled>Join →</button>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app">
+
+  <div id="header">
+    <div id="event-title" contenteditable="false" spellcheck="false">When can we meet?</div>
+    <button class="btn-sm" id="btn-me" title="Change your name">✏️ Me</button>
+    <button class="btn-sm" id="btn-host" title="Toggle host mode">🔑 Host</button>
+  </div>
+
+  <!-- Host panel -->
+  <div id="host-panel">
+    <h3>Host controls — dates</h3>
+    <div id="date-list"></div>
+    <button id="btn-add-date">+ Add date</button>
+  </div>
+
+  <!-- Grid -->
+  <div id="grid-wrap">
+    <div id="no-dates-msg">
+      <strong>No dates yet.</strong><br>
+      Toggle <em>Host</em> to add dates for everyone to respond to.
+    </div>
+    <table id="grid-table" style="display:none;">
+      <colgroup id="colgroup"><col class="col-name"></colgroup>
+      <thead id="grid-head"></thead>
+      <tbody id="grid-body"></tbody>
+    </table>
+  </div>
+
+  <div id="legend">
+    <div class="leg-item">
+      <div class="leg-dot" style="background:var(--yes-bg);color:var(--yes);">✓</div> Yes
+    </div>
+    <div class="leg-item">
+      <div class="leg-dot" style="background:var(--maybe-bg);color:var(--maybe);font-size:11px;">≈</div> If needed
+    </div>
+    <div class="leg-item">
+      <div class="leg-dot" style="background:var(--no-bg);color:var(--no);">✕</div> No
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<script>
+/* ── Constants ── */
+const DAY   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CYCLE = ['yes','no','maybe'];
+const ICON  = { yes:'✓', no:'✕', maybe:'≈' };
+const KEY   = 'avail_v2';
+
+/* ── Storage ── */
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; }
+}
+function persist() { localStorage.setItem(KEY, JSON.stringify(S)); }
+
+/* ── State ── */
+// S  = shared board state (participants, dates, title)
+// myId = which participant is "me" on this browser
+let S    = load();
+let myId = localStorage.getItem('avail_myid') || null;
+let hostMode = false;
+
+if (!S.participants) S.participants = [];
+if (!S.dates)        S.dates = [];
+if (!S.title)        S.title = 'When can we meet?';
+
+/* ── DOM refs ── */
+const overlay    = document.getElementById('overlay');
+const inputName  = document.getElementById('input-name');
+const btnJoin    = document.getElementById('btn-join');
+const titleEl    = document.getElementById('event-title');
+const btnMe      = document.getElementById('btn-me');
+const btnHost    = document.getElementById('btn-host');
+const hostPanel  = document.getElementById('host-panel');
+const dateList   = document.getElementById('date-list');
+const btnAddDate = document.getElementById('btn-add-date');
+const noDatesMsg = document.getElementById('no-dates-msg');
+const gridTable  = document.getElementById('grid-table');
+const colgroup   = document.getElementById('colgroup');
+const gridHead   = document.getElementById('grid-head');
+const gridBody   = document.getElementById('grid-body');
+
+/* ── Boot ── */
+titleEl.textContent = S.title;
+
+if (!myId || !S.participants.find(p => p.id === myId)) {
+  // new visitor (or local state cleared) — ask name
+  showOverlay();
+} else {
+  hideOverlay();
+  render();
+}
+
+/* ── Name modal ── */
+inputName.addEventListener('input', () => {
+  btnJoin.disabled = inputName.value.trim().length < 1;
+});
+inputName.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !btnJoin.disabled) btnJoin.click();
+});
+inputName.addEventListener('focus', () => {
+  // auto-fill if re-opening for name change
+  if (myId) {
+    const me = S.participants.find(p => p.id === myId);
+    if (me && !inputName.value) inputName.value = me.name;
+    btnJoin.disabled = false;
+  }
+});
+
+btnJoin.addEventListener('click', () => {
+  const name = inputName.value.trim();
+  if (!name) return;
+
+  if (!myId) {
+    myId = 'p' + Date.now() + Math.random().toString(36).slice(2,6);
+    localStorage.setItem('avail_myid', myId);
+  }
+
+  let me = S.participants.find(p => p.id === myId);
+  if (!me) {
+    me = { id: myId, name, avail: {} };
+    S.participants.push(me);
+  } else {
+    me.name = name;
+  }
+
+  // default all existing dates to 'yes' for me
+  S.dates.forEach(d => { if (!(d in me.avail)) me.avail[d] = 'yes'; });
+
+  persist();
+  hideOverlay();
+  render();
+});
+
+function showOverlay() {
+  overlay.classList.remove('hidden');
+  inputName.value = '';
+  btnJoin.disabled = true;
+  setTimeout(() => inputName.focus(), 80);
+}
+function hideOverlay() {
+  overlay.classList.add('hidden');
+}
+
+/* ── Me button ── */
+btnMe.addEventListener('click', () => {
+  const me = S.participants.find(p => p.id === myId);
+  inputName.value = me ? me.name : '';
+  btnJoin.disabled = !inputName.value;
+  showOverlay();
+});
+
+/* ── Host toggle ── */
+btnHost.addEventListener('click', () => {
+  hostMode = !hostMode;
+  btnHost.classList.toggle('active', hostMode);
+  hostPanel.classList.toggle('visible', hostMode);
+  // title editable only in host mode
+  titleEl.contentEditable = hostMode ? 'true' : 'false';
+  if (hostMode) {
+    renderHostDateList();
+    titleEl.focus();
+  }
+  document.getElementById('grid-wrap').classList.toggle('host-mode', hostMode);
+  render();
+});
+
+/* ── Title editing ── */
+titleEl.addEventListener('input', () => {
+  S.title = titleEl.textContent.trim() || 'When can we meet?';
+  persist();
+});
+titleEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+});
+
+/* ── Host: date list ── */
+function renderHostDateList() {
+  dateList.innerHTML = '';
+  S.dates.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'date-edit-row';
+
+    const inp = document.createElement('input');
+    inp.type = 'date'; inp.value = d;
+    inp.addEventListener('change', () => {
+      const newVal = inp.value;
+      if (!newVal) return;
+      // update existing avail keys for all participants
+      S.participants.forEach(p => {
+        if (d in p.avail) {
+          p.avail[newVal] = p.avail[d];
+          delete p.avail[d];
+        }
+      });
+      S.dates[i] = newVal;
+      S.dates.sort();
+      persist();
+      renderHostDateList();
+      render();
+    });
+
+    const rm = document.createElement('button');
+    rm.className = 'btn-rm-date'; rm.type = 'button'; rm.textContent = '×';
+    rm.addEventListener('click', () => {
+      S.dates.splice(i, 1);
+      S.participants.forEach(p => delete p.avail[d]);
+      persist();
+      renderHostDateList();
+      render();
+    });
+
+    row.appendChild(inp); row.appendChild(rm);
+    dateList.appendChild(row);
+  });
+  btnAddDate.disabled = S.dates.length >= 5;
+}
+
+btnAddDate.addEventListener('click', () => {
+  if (S.dates.length >= 5) return;
+  const row = document.createElement('div');
+  row.className = 'date-edit-row';
+
+  const inp = document.createElement('input');
+  inp.type = 'date';
+  inp.addEventListener('change', () => {
+    const v = inp.value;
+    if (!v || S.dates.includes(v)) return;
+    S.dates.push(v);
+    S.dates.sort();
+    // default all participants to 'yes' for new date
+    S.participants.forEach(p => { if (!(v in p.avail)) p.avail[v] = 'yes'; });
+    persist();
+    renderHostDateList();
+    render();
+  });
+
+  const rm = document.createElement('button');
+  rm.className = 'btn-rm-date'; rm.type = 'button'; rm.textContent = '×';
+  rm.addEventListener('click', () => row.remove());
+
+  row.appendChild(inp); row.appendChild(rm);
+  dateList.appendChild(row);
+  btnAddDate.disabled = dateList.children.length >= 5;
+  inp.focus();
+});
+
+/* ── Render grid ── */
+function render() {
+  const dates   = S.dates;
+  const people  = S.participants;
+
+  if (!dates.length) {
+    noDatesMsg.style.display = '';
+    gridTable.style.display  = 'none';
+    return;
+  }
+  noDatesMsg.style.display = 'none';
+  gridTable.style.display  = '';
+
+  /* colgroup */
+  colgroup.innerHTML = '<col class="col-name">';
+  dates.forEach(() => {
+    const c = document.createElement('col');
+    colgroup.appendChild(c);
+  });
+
+  /* ── thead ── */
+  let h = '<tr>';
+  h += `<th class="th-name">People <span style="opacity:.5;font-weight:400;">${people.length}</span></th>`;
+  dates.forEach(d => {
+    const dt  = new Date(d + 'T12:00:00');
+    const day = DAY[dt.getDay()];
+    const num = dt.getDate();
+    const mon = MON[dt.getMonth()];
+    h += `<th class="th-date">
+      <span class="th-day">${day}</span>
+      <span class="th-num">${num}</span>
+      <span class="th-mon">${mon}</span>
+    </th>`;
+  });
+  h += '</tr>';
+  gridHead.innerHTML = h;
+
+  /* ── summary row ── */
+  const yesCount = dates.map(d => people.filter(p => p.avail[d] === 'yes').length);
+  const maxYes   = Math.max(...yesCount, 0);
+  let sum = '<tr class="tr-sum">';
+  sum += '<td class="td-label">Available</td>';
+  dates.forEach((d, i) => {
+    const cnt  = yesCount[i];
+    const best = cnt === maxYes && cnt > 0;
+    sum += `<td class="td-cnt"><span class="cnt-badge${best ? ' best' : ''}">${cnt}</span></td>`;
+  });
+  sum += '</tr>';
+
+  /* ── participant rows ── */
+  let rows = '';
+  people.forEach(p => {
+    const isMe = p.id === myId;
+    rows += `<tr class="tr-p${isMe ? ' tr-own' : ''}" data-pid="${esc(p.id)}">`;
+    rows += `<td class="td-name">
+      <div class="td-name-inner">
+        <span class="name-text">${esc(p.name)}</span>
+        ${isMe ? '<span class="you-badge">you</span>' : ''}
+        ${hostMode && !isMe ? `<button class="btn-del-p" data-action="del" data-pid="${esc(p.id)}" title="Remove">×</button>` : ''}
+      </div>
+    </td>`;
+    dates.forEach(d => {
+      const status = p.avail[d] !== undefined ? p.avail[d] : 'no';
+      rows += `<td class="td-cell" data-pid="${esc(p.id)}" data-date="${esc(d)}">
+        <span class="cell-icon ${status}">${ICON[status]}</span>
+      </td>`;
+    });
+    rows += '</tr>';
+  });
+
+  /* ── add row ── */
+  rows += `<tr id="add-row"><td colspan="${dates.length + 1}">
+    <button id="btn-add-person">Add yourself</button>
+  </td></tr>`;
+
+  gridBody.innerHTML = sum + rows;
+
+  /* ── event delegation (single listener) ── */
+  gridBody.addEventListener('click', handleGridClick, { once: true });
+
+  /* ensure host-mode class reflects current state */
+  document.getElementById('grid-wrap').classList.toggle('host-mode', hostMode);
+}
+
+/* ── Grid click handler ── */
+function handleGridClick(e) {
+  /* re-attach listener immediately so it's ready for next event */
+  gridBody.addEventListener('click', handleGridClick, { once: true });
+
+  /* Delete participant (host mode) */
+  const delBtn = e.target.closest('[data-action="del"]');
+  if (delBtn) {
+    const pid = delBtn.dataset.pid;
+    S.participants = S.participants.filter(p => p.id !== pid);
+    persist();
+    render();
+    return;
+  }
+
+  /* Cell toggle (own row only) */
+  const cell = e.target.closest('.td-cell');
+  if (!cell) return;
+
+  const pid  = cell.dataset.pid;
+  const date = cell.dataset.date;
+  if (pid !== myId) return; // only own row
+
+  const me = S.participants.find(p => p.id === myId);
+  if (!me) return;
+
+  const cur  = me.avail[date] !== undefined ? me.avail[date] : 'no';
+  const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  me.avail[date] = next;
+
+  persist();
+  render();
+}
+
+/* ── Util ── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

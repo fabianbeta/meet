@@ -1,0 +1,7 @@
+node_modules
+npm-debug.log
+*.html
+CLAUDE.md
+DEPLOY.md
+meeting-V*.html
+.git

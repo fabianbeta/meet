@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>When can we meet?</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #ffffff;
+  --bg2:       #f0ede8;
+  --bg3:       #e8e4de;
+  --page:      #f5f3ef;
+  --line:      #dedad4;
+  --line2:     #c4c0b8;
+  --text:      #1a1916;
+  --muted:     #7a7870;
+  --accent:    #185FA5;
+  --accent-bg: #deeefa;
+  --yes:       #1D9E75;
+  --yes-bg:    #e1f5ee;
+  --no:        #b93328;
+  --no-bg:     #fce8e6;
+  --maybe:     #9a5c00;
+  --maybe-bg:  #fff3c0;
+  --own-bg:    #eef5fd;
+  --own-line:  #b5d4f4;
+  --host-bg:   #fffaed;
+  --host-line: #edc940;
+  --r:         12px;
+  --name-w:    100px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--page);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 20px 14px 56px;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+#header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+#event-title {
+  flex: 1; font-size: 22px; font-weight: 700; line-height: 1.2;
+  min-width: 0; word-break: break-word; letter-spacing: -0.3px;
+}
+#event-title[contenteditable="true"] {
+  outline: none; border-bottom: 2px dashed var(--line2); padding-bottom: 1px; cursor: text;
+}
+#event-title[contenteditable="true"]:focus { border-color: var(--accent); }
+
+.btn-sm {
+  flex-shrink: 0; background: var(--bg); border: 1px solid var(--line2);
+  border-radius: 8px; padding: 6px 11px; font-size: 12px; color: var(--muted);
+  cursor: pointer; white-space: nowrap; line-height: 1.4;
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.btn-sm.active { background: var(--host-bg); border-color: var(--host-line); color: #7a5000; font-weight: 600; }
+
+#legend {
+  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.leg {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 14px; font-weight: 500; color: var(--text);
+}
+.leg-icon {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+
+#host-panel {
+  background: var(--host-bg); border: 1px solid var(--host-line);
+  border-radius: var(--r); padding: 14px; margin-bottom: 14px; display: none;
+}
+#host-panel.visible { display: block; }
+.host-section-title {
+  font-size: 11px; font-weight: 700; color: #7a5000;
+  letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 10px;
+}
+#btn-reset {
+  margin-top: 12px; padding: 7px 14px; border: 1px solid var(--no);
+  background: var(--no-bg); color: var(--no); border-radius: 8px;
+  font-size: 12px; font-weight: 600; cursor: pointer; width: 100%;
+}
+#btn-reset:hover { background: var(--no); color: #fff; }
+
+#cal-nav {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+#cal-month-label { font-size: 14px; font-weight: 600; }
+.cal-nav-btn {
+  background: var(--bg); border: 1px solid var(--line2); border-radius: 6px;
+  width: 30px; height: 30px; font-size: 16px; cursor: pointer; color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+.cal-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+#cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 10px;
+}
+.cal-dow {
+  text-align: center; font-size: 10px; font-weight: 700;
+  color: var(--muted); padding: 4px 0; letter-spacing: 0.04em;
+}
+.cal-day {
+  aspect-ratio: 1; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; cursor: pointer; border: none;
+  background: transparent; color: var(--text); position: relative;
+}
+.cal-day:hover:not(:disabled):not(.empty) { background: var(--bg3); }
+.cal-day.today { font-weight: 700; }
+.cal-day.today::after {
+  content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+.cal-day.sel { background: var(--accent); color: #fff; font-weight: 700; }
+.cal-day.sel.today::after { background: rgba(255,255,255,0.6); }
+.cal-day.empty { pointer-events: none; }
+.cal-day:disabled { opacity: 0.25; cursor: not-allowed; }
+#cal-chips {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding-top: 8px; border-top: 1px solid var(--host-line);
+}
+.cal-chip {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--accent-bg); border: 1px solid rgba(24,95,165,0.18);
+  border-radius: 20px; padding: 3px 8px 3px 10px;
+  font-size: 12px; font-weight: 500; color: var(--accent);
+}
+.chip-rm {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; color: var(--accent); opacity: 0.55; padding: 0; line-height: 1;
+}
+.chip-rm:hover { opacity: 1; }
+#cal-hint { font-size: 12px; color: var(--muted); padding-top: 8px; border-top: 1px solid var(--host-line); }
+
+#grid-wrap {
+  background: var(--bg); border: 1.5px solid var(--line2);
+  border-radius: var(--r); overflow: hidden; margin-bottom: 10px;
+}
+#empty-msg {
+  padding: 28px 16px; text-align: center;
+  font-size: 13px; color: var(--muted); line-height: 1.7; display: none;
+}
+
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+colgroup col.col-name { width: var(--name-w); }
+table.no-dates colgroup col.col-name { width: 100%; }
+
+.th-name {
+  background: var(--bg2); text-align: left; padding: 9px 12px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  border-bottom: 1.5px solid var(--line2);
+}
+.th-date {
+  background: var(--bg); text-align: center; padding: 8px 2px 6px;
+  border-left: 1px solid var(--line); border-bottom: 1.5px solid var(--line2);
+}
+.th-day { display: block; font-size: 10px; font-weight: 600; color: var(--muted); }
+.th-num { display: block; font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.th-mon { display: block; font-size: 10px; font-weight: 600; color: var(--muted); margin-top: 1px; }
+
+.tr-sum td {
+  background: var(--bg2); border-bottom: 1px solid var(--line); padding: 5px 2px; text-align: center;
+}
+.tr-sum .td-blank { border-right: 1px solid var(--line); }
+.td-cnt { border-left: 1px solid var(--line); }
+.cnt-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; border-radius: 12px;
+  font-size: 13px; font-weight: 700;
+  background: var(--bg3); color: var(--muted);
+}
+.cnt-badge.best { background: var(--yes-bg); color: var(--yes); }
+
+.tr-p td { border-bottom: 1px solid var(--line); }
+.tr-p:last-of-type td { border-bottom: none; }
+.td-name {
+  padding: 0 10px 0 12px; height: 46px;
+  font-size: 13px; color: var(--text); vertical-align: middle;
+}
+.td-name-inner { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.you-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.tr-own td { background: var(--own-bg); }
+.tr-own .td-name { font-weight: 600; }
+.tr-own .td-cell { border-left-color: var(--own-line); }
+
+.td-cell {
+  text-align: center; vertical-align: middle; height: 46px; padding: 0 2px;
+  border-left: 1px solid var(--line);
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.tr-own .td-cell { cursor: pointer; }
+.tr-own .td-cell:active { opacity: 0.6; }
+
+.cell-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  font-size: 15px; font-weight: 700; line-height: 1;
+}
+.cell-icon.yes   { background: var(--yes-bg);   color: var(--yes); }
+.cell-icon.no    { background: var(--no-bg);     color: var(--no); font-size: 12px; }
+.cell-icon.maybe { background: var(--maybe-bg);  color: var(--maybe); font-size: 19px; letter-spacing: -2px; }
+
+.btn-del {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 16px; padding: 0 1px; line-height: 1;
+  opacity: 0; transition: opacity 0.12s;
+}
+.host-mode .tr-p:not(.tr-own):hover .btn-del { opacity: 1; }
+.host-mode .btn-del:hover { color: var(--no); opacity: 1; }
+
+.rename-input {
+  width: 100%; padding: 2px 5px; border: 1.5px solid var(--accent);
+  border-radius: 5px; font-size: 13px; font-weight: 600;
+  background: var(--bg); color: var(--text); outline: none; min-width: 0;
+}
+
+#join-wrap {
+  background: var(--bg); border: 1.5px solid var(--line2);
+  border-radius: var(--r); padding: 10px 12px;
+  display: flex; gap: 8px; align-items: center;
+}
+#join-input {
+  flex: 1; min-width: 0; padding: 8px 11px;
+  border: 1px solid var(--line2); border-radius: 8px;
+  font-size: 14px; background: var(--bg); color: var(--text); outline: none;
+}
+#join-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+#join-btn {
+  flex-shrink: 0; background: var(--accent); color: #fff;
+  border: none; border-radius: 8px; padding: 8px 14px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
+#join-btn:hover { background: #0c447c; }
+#join-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+
+/* Saving indicator */
+#save-indicator {
+  position: fixed; bottom: 14px; right: 14px;
+  background: rgba(0,0,0,0.65); color: #fff;
+  border-radius: 8px; padding: 6px 12px; font-size: 12px;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none;
+}
+#save-indicator.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="event-title" contenteditable="false" spellcheck="false">When can we meet?</div>
+  <button class="btn-sm" id="btn-host">🔑 Host</button>
+</div>
+
+<div id="legend">
+  <div class="leg">
+    <div class="leg-icon" style="background:var(--yes-bg);color:var(--yes);">✓</div> Yes
+  </div>
+  <div class="leg">
+    <div class="leg-icon" style="background:var(--maybe-bg);color:var(--maybe);font-size:13px;">≈</div> If needed
+  </div>
+  <div class="leg">
+    <div class="leg-icon" style="background:var(--no-bg);color:var(--no);">✕</div> No
+  </div>
+</div>
+
+<div id="host-panel">
+  <div class="host-section-title">Pick dates (up to 5)</div>
+  <div id="cal-nav">
+    <button class="cal-nav-btn" id="cal-prev">‹</button>
+    <span id="cal-month-label"></span>
+    <button class="cal-nav-btn" id="cal-next">›</button>
+  </div>
+  <div id="cal-grid"></div>
+  <div id="cal-chips-wrap"></div>
+  <button id="btn-reset">Reset board (clear all participants &amp; dates)</button>
+</div>
+
+<div id="grid-wrap">
+  <div id="empty-msg">Add your name below to get started.</div>
+  <table id="grid-table" style="display:none">
+    <colgroup id="colgroup"><col class="col-name"></colgroup>
+    <thead id="grid-head"></thead>
+    <tbody id="grid-body"></tbody>
+  </table>
+</div>
+
+<div id="join-wrap">
+  <input id="join-input" type="text" placeholder="Your name — tap to join" autocomplete="off" maxlength="30">
+  <button id="join-btn" disabled>Add →</button>
+</div>
+
+<div id="save-indicator">Saving…</div>
+
+<script>
+const DAY    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CYCLE  = ['yes','no','maybe'];
+const ICON   = { yes:'✓', no:'✕', maybe:'≈' };
+const ID_KEY = 'avail_myid_v5';
+
+let S        = { title: 'When can we meet?', dates: [], participants: [] };
+let myId     = localStorage.getItem(ID_KEY) || null;
+let hostMode = false;
+let pollTimer;
+
+const titleEl   = document.getElementById('event-title');
+const btnHost   = document.getElementById('btn-host');
+const hostPanel = document.getElementById('host-panel');
+const calGrid   = document.getElementById('cal-grid');
+const calLabel  = document.getElementById('cal-month-label');
+const calChips  = document.getElementById('cal-chips-wrap');
+const emptyMsg  = document.getElementById('empty-msg');
+const gridTable = document.getElementById('grid-table');
+const colgroup  = document.getElementById('colgroup');
+const gridHead  = document.getElementById('grid-head');
+const gridBody  = document.getElementById('grid-body');
+const joinInput = document.getElementById('join-input');
+const joinBtn   = document.getElementById('join-btn');
+const saveInd   = document.getElementById('save-indicator');
+
+const now = new Date();
+let calYear  = now.getFullYear();
+let calMonth = now.getMonth();
+
+// ── API helpers ──────────────────────────────────────────────────────────────
+let saveTimer;
+function showSaving() {
+  saveInd.classList.add('show');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveInd.classList.remove('show'), 1200);
+}
+
+async function api(method, path, body) {
+  showSaving();
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api' + path, opts);
+  if (!r.ok) console.error(method, path, await r.text());
+  return r.json();
+}
+
+async function loadBoard() {
+  const data = await fetch('/api/board').then(r => r.json());
+  S = data;
+  // Verify myId still exists in this board
+  if (myId && !S.participants.find(p => p.id === myId)) myId = null;
+  titleEl.textContent = S.title;
+  render();
+}
+
+// Poll for updates every 10 s so other people's changes appear
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(loadBoard, 10000);
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+joinInput.addEventListener('input', () => { joinBtn.disabled = !joinInput.value.trim(); });
+joinInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !joinBtn.disabled) joinBtn.click(); });
+joinBtn.addEventListener('click', async () => {
+  const name = joinInput.value.trim(); if (!name) return;
+  const res = await api('POST', '/board/join', { name });
+  myId = res.id;
+  localStorage.setItem(ID_KEY, myId);
+  joinInput.value = ''; joinBtn.disabled = true;
+  await loadBoard();
+});
+
+btnHost.addEventListener('click', () => {
+  hostMode = !hostMode;
+  btnHost.classList.toggle('active', hostMode);
+  hostPanel.classList.toggle('visible', hostMode);
+  titleEl.contentEditable = hostMode ? 'true' : 'false';
+  if (hostMode) renderCalendar();
+  render();
+});
+
+titleEl.addEventListener('input', () => {
+  const t = titleEl.textContent.trim();
+  S.title = t;
+  clearTimeout(titleEl._t);
+  titleEl._t = setTimeout(() => api('PATCH', '/board/title', { title: t || 'When can we meet?' }), 600);
+});
+titleEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } });
+
+document.getElementById('cal-prev').addEventListener('click', () => {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar();
+});
+document.getElementById('cal-next').addEventListener('click', () => {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar();
+});
+
+document.getElementById('btn-reset').addEventListener('click', async () => {
+  if (!confirm('Reset board? This clears all participants and dates.')) return;
+  await api('POST', '/board/reset');
+  myId = null; localStorage.removeItem(ID_KEY);
+  await loadBoard();
+});
+
+// ── Calendar ─────────────────────────────────────────────────────────────────
+function renderCalendar() {
+  calLabel.textContent = MONTHS[calMonth] + ' ' + calYear;
+  const todayStr    = toDateStr(now);
+  const firstDow    = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  let html = DAY.map(d => `<span class="cal-dow">${d.slice(0,2)}</span>`).join('');
+  for (let i = 0; i < firstDow; i++) html += '<button class="cal-day empty" disabled></button>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds  = toDateStr(new Date(calYear, calMonth, d));
+    const sel = S.dates.includes(ds);
+    const max = S.dates.length >= 5 && !sel;
+    html += `<button class="cal-day${sel ? ' sel' : ''}${ds === todayStr ? ' today' : ''}" data-date="${ds}"${max ? ' disabled' : ''}>${d}</button>`;
+  }
+  calGrid.innerHTML = html;
+
+  calGrid.querySelectorAll('.cal-day[data-date]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ds = btn.dataset.date;
+      let dates;
+      if (S.dates.includes(ds)) dates = S.dates.filter(x => x !== ds);
+      else if (S.dates.length < 5) dates = [...S.dates, ds].sort();
+      else return;
+      await api('PATCH', '/board/dates', { dates });
+      await loadBoard();
+      renderCalendar();
+    });
+  });
+
+  if (S.dates.length > 0) {
+    const chips = S.dates.map(ds => {
+      const dt = new Date(ds + 'T12:00:00');
+      return `<span class="cal-chip">${DAY[dt.getDay()]} ${dt.getDate()} ${MON[dt.getMonth()]}
+        <button class="chip-rm" data-rm="${ds}">×</button></span>`;
+    }).join('');
+    calChips.innerHTML = `<div id="cal-chips">${chips}</div>`;
+    calChips.querySelectorAll('.chip-rm').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const dates = S.dates.filter(x => x !== btn.dataset.rm);
+        await api('PATCH', '/board/dates', { dates });
+        await loadBoard();
+        renderCalendar();
+      });
+    });
+  } else {
+    calChips.innerHTML = `<div id="cal-hint">Tap any day to add it. Up to 5.</div>`;
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const { dates, participants: people } = S;
+  const hasAny = people.length > 0 || dates.length > 0;
+
+  emptyMsg.style.display  = hasAny ? 'none' : 'block';
+  gridTable.style.display = hasAny ? '' : 'none';
+  if (!hasAny) return;
+
+  gridTable.classList.toggle('no-dates', dates.length === 0);
+  colgroup.innerHTML = '<col class="col-name">';
+  dates.forEach(() => colgroup.appendChild(el('col')));
+
+  let h = '<tr><th class="th-name"></th>';
+  dates.forEach(d => {
+    const dt = new Date(d + 'T12:00:00');
+    h += `<th class="th-date">
+      <span class="th-day">${DAY[dt.getDay()]}</span>
+      <span class="th-num">${dt.getDate()}</span>
+      <span class="th-mon">${MON[dt.getMonth()]}</span>
+    </th>`;
+  });
+  h += '</tr>';
+  gridHead.innerHTML = h;
+
+  let sum = '';
+  if (dates.length > 0) {
+    const yc   = dates.map(d => people.filter(p => p.avail[d] === 'yes').length);
+    const best = Math.max(...yc, 0);
+    sum = '<tr class="tr-sum"><td class="td-blank"></td>';
+    dates.forEach((d, i) => {
+      const b = yc[i] === best && yc[i] > 0;
+      sum += `<td class="td-cnt"><span class="cnt-badge${b ? ' best' : ''}">${yc[i]}</span></td>`;
+    });
+    sum += '</tr>';
+  }
+
+  let rows = '';
+  people.forEach(p => {
+    const isMe = p.id === myId;
+    rows += `<tr class="tr-p${isMe ? ' tr-own' : ''}" data-pid="${x(p.id)}">`;
+    rows += `<td class="td-name"><div class="td-name-inner">
+      ${isMe ? '<span class="you-dot"></span>' : ''}
+      <span class="name-text" data-pid="${x(p.id)}">${x(p.name)}</span>
+      ${hostMode && !isMe ? `<button class="btn-del" data-action="del" data-pid="${x(p.id)}">×</button>` : ''}
+    </div></td>`;
+    dates.forEach(d => {
+      const s = p.avail[d] ?? 'no';
+      rows += `<td class="td-cell" data-pid="${x(p.id)}" data-date="${x(d)}"><span class="cell-icon ${s}">${ICON[s]}</span></td>`;
+    });
+    rows += '</tr>';
+  });
+
+  gridBody.innerHTML = sum + rows;
+  document.getElementById('grid-wrap').classList.toggle('host-mode', hostMode);
+  gridBody.onclick    = handleClick;
+  gridBody.ondblclick = handleDblClick;
+}
+
+async function handleClick(e) {
+  const del = e.target.closest('[data-action="del"]');
+  if (del) {
+    await api('DELETE', '/board/participant/' + del.dataset.pid);
+    await loadBoard(); return;
+  }
+  const cell = e.target.closest('.td-cell');
+  if (!cell || cell.dataset.pid !== myId) return;
+  const me = S.participants.find(p => p.id === myId); if (!me) return;
+  const d = cell.dataset.date;
+  const next = CYCLE[(CYCLE.indexOf(me.avail[d] ?? 'no') + 1) % CYCLE.length];
+  me.avail[d] = next;       // optimistic update
+  render();
+  await api('POST', '/board/respond', { id: myId, date: d, status: next });
+}
+
+function handleDblClick(e) {
+  const nameSpan = e.target.closest('.name-text');
+  if (!nameSpan || nameSpan.dataset.pid !== myId) return;
+  const cur = S.participants.find(p => p.id === myId); if (!cur) return;
+  const inp = el('input', 'rename-input');
+  inp.value = cur.name; nameSpan.replaceWith(inp); inp.focus(); inp.select();
+  const commit = async () => {
+    const name = inp.value.trim();
+    if (name && name !== cur.name) {
+      cur.name = name;
+      await api('PATCH', '/board/rename', { id: myId, name });
+    }
+    render();
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = cur.name; inp.blur(); }
+  });
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function x(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadBoard().then(() => {
+  if (!myId) joinInput.focus();
+  startPolling();
+});
+</script>
+</body>
+</html>
