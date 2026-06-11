@@ -72,12 +72,7 @@ app.post('/api/board/join', (req, res) => {
 
   const id = crypto.randomBytes(8).toString('hex');
   db.prepare('INSERT INTO participants (id, name) VALUES (?, ?)').run(id, name);
-
-  const dates = getDates();
-  const ins   = db.prepare('INSERT OR IGNORE INTO availability (participant_id, date, status) VALUES (?, ?, ?)');
-  const many  = db.transaction(() => dates.forEach(d => ins.run(id, d, 'yes')));
-  many();
-
+  // No pre-fill: new participants start with no availability rows (shown as grey dash on frontend)
   res.json({ id, name });
 });
 
@@ -103,7 +98,7 @@ app.patch('/api/board/title', (req, res) => {
 // PATCH /api/board/dates  { dates: string[] }
 app.patch('/api/board/dates', (req, res) => {
   const dates = req.body?.dates;
-  if (!Array.isArray(dates) || dates.length > 5)
+  if (!Array.isArray(dates) || dates.length > 6)
     return res.status(400).json({ error: 'dates must be array of ≤5' });
 
   const validDate = /^\d{4}-\d{2}-\d{2}$/;
@@ -121,12 +116,7 @@ app.patch('/api/board/dates', (req, res) => {
     db.prepare('DELETE FROM availability').run();
   }
 
-  // Pre-fill 'yes' for existing participants on new dates
-  const people = db.prepare('SELECT id FROM participants').all();
-  const ins    = db.prepare('INSERT OR IGNORE INTO availability (participant_id, date, status) VALUES (?, ?, ?)');
-  const many   = db.transaction(() => people.forEach(p => sorted.forEach(d => ins.run(p.id, d, 'yes'))));
-  many();
-
+  // No pre-fill: existing participants keep their current responses; new date columns start grey
   res.json({ ok: true, dates: sorted });
 });
 

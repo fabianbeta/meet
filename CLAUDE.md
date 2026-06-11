@@ -32,13 +32,14 @@ Attendance App/
 | V07 | versions/meeting-V07.html | Design polish: soft warm-gray borders, wider name col, cleaner hierarchy, blue dot indicator |
 | V08 | versions/meeting-V08.html | Backend version: fetch() replaces localStorage; 10s polling; saving indicator; reset button |
 | V09 | versions/meeting-V09.html | Calendar: buffered pendingDates (no API per click), commit on close; 3 action buttons (Accept/Reset dates/Reset board); removed chips; join is optimistic (instant render); new entries default to grey dash unset state |
+| V10 | versions/meeting-V10.html | 6 dates max; name col 75px; backend pre-fill removed (grey stays grey); name-based reclaim on join; single-tap name to edit + × Leave button; join form dims when on board; isEditing guard suppresses poll during edit |
 
 **When making UI/behaviour changes:**
 1. Save the new version to `versions/meeting-VXX.html`
 2. Copy it to `app/public/index.html` (this is what gets served)
 3. Update the table above
 
-Next version → `meeting-V10.html`
+Next version → `meeting-V11.html`
 
 ## Design decisions (locked unless user says otherwise)
 - Light theme only
