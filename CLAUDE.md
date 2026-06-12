@@ -41,7 +41,14 @@ Attendance App/
 2. Copy it to `app/public/index.html` (this is what gets served)
 3. Update the table above
 
-Next version → `meeting-V13.html`
+| V13 | versions/meeting-V13.html | Edit/× icons only on name tap; host can edit/delete all names; grid + icons 15% smaller; name col 75→105px; bottom hint text |
+
+**When making UI/behaviour changes:**
+1. Save the new version to `versions/meeting-VXX.html`
+2. Copy it to `app/public/index.html` (this is what gets served)
+3. Update the table above
+
+Next version → `meeting-V14.html`
 
 ## Design decisions (locked unless user says otherwise)
 - Light theme only
